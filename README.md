@@ -6,6 +6,7 @@ Required Python modules:
 - numpy (for quantitative operations)
 - scipy (for signal processing)
 - matplotlib (for visualization)
+- pywt (for wavelet operations)
 
 ###### Metric 1: Heart rate
 (In progress)
@@ -15,6 +16,8 @@ Required Python modules:
 
 ###### Metric 3: ECG-derived respiration
 (In progress)
+
+###### 
 
 ###### References:
 1) Pan J and Tompkins WJ. "A Real-Time QRS Detection Algorithm." IEEE Trans Biomed Eng. 1985;32(3): 232-6.

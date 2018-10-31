@@ -1,14 +1,22 @@
 
+# data I/O
 import os
 import wfdb
 import scipy.io as sio
+import pickle
 
+#
 import numpy as np
-from scipy import signal, fftpack
-# import sig_proc
 
+# signal processing
+from scipy import signal, fftpack
+from sig_proc import bpf, hpf, lpf
+# from pywt import wavedec
+
+# plotting
 from matplotlib import pyplot as plt
 
+# debugging
 import pdb
 
 
@@ -40,113 +48,78 @@ def get_data(db_name):
     return data_dict
 
 
-def lpf(x, fc, fs):
+def analysis(y,fs):
     '''
-    Function to implement low-pass filter
-        Args: Input signal (x), cutoff frequency (fc), sampling frequency (fs)
-        Returns: Filtered signal (x_filt)
+    Time-series and frequency analysis of input signal
+        Args: y = input signal, fs = sampling frequency
+        Out: Time and frequency domain features of signal y
     '''
-    b, a = signal.butter(3, 2*fc/fs, btype='lowpass')
-    x_filt = signal.lfilter(b,a,x)
-    return x_filt
 
-
-def hpf(x, fc, fs):
-    '''
-    Function to implement high-pass filter
-        Args: Input signal (x), cutoff frequency (fc), sampling frequency (fs)
-        Returns: Filtered signal (x_filt)
-    '''
-    b, a = signal.butter(3, 2*fc/fs, btype='highpass')
-    x_filt = signal.lfilter(b,a,x)
-    return x_filt
-
-
-def bpf(x, lo, hi, fs):
-    '''
-    Function to implement band-pass filter
-        Args: Input signal (x), cutoff frequencies (lo, hi), sampling frequency (fs)
-        Returns: Filtered signal (x_filt)
-    '''
-    b = signal.firwin(30, [2*lo/fs, 2*hi/fs], pass_zero=False)
-    x_filt = signal.lfilter(b,1,x)
-    pdb.set_trace()
-    # determine lowest butterworth order
-    fc_lo = 2*lo/fs # lower cutoff frequency in rad
-    fc_hi = 2*hi/fs # higher cutoff frequency in rad
-    wp = [fc_lo, fc_hi] # passband edge frequencies
-    ws = [fc_lo - fc_lo/2, fc_hi + fc_lo/2]
-    gpass = 3 # passband gain
-    gstop = 40 # stop band attenuation (negative)
-    N, Wn = signal.buttord(wp, ws, gpass, gstop, analog=False)
-    # generate coefficients and apply filter
-    b, a = signal.butter(N, [fc_lo, fc_hi], btype='bandpass')
-    x_filt = signal.filtfilt(b,a,x)
-    return x_filt
-
-
-def freq_analysis(y, fs):
-    '''
-    Analyze frequency content of input signal y to determine filter cutoffs
-    '''
     out = {}
 
-    # Fourier transform
-    N = 8192 # number of fft bins
-    xf = np.linspace( 0, fs/2, num=N//2 ) # frequency vector
-    yf = fftpack.fft(y, n=N) # Fourier transform
-    ps = (2/N) * np.abs(yf[0:int(N//2)]) # normalized power spectrum
+    y = y[0:fs*5-1] # extract 5-second segment
 
-    out['freq1'] = xf[np.argmax(yf)] # dominant frequency
+    # calculate PDF using 4-second windows with 50% overlap
+    f,Pyy = signal.welch(y, fs=fs, nperseg=2*fs, noverlap=fs)
 
-    # energy in 5-15 Hz band
-
-    plt.plot(xf, ps)
+    plt.plot(f, Pyy)
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Power')
     plt.show()
     plt.close()
+
+    out['max_freq'] = f[np.argmax(Pyy)] # dominant frequency
+
+    # TODO: calculate energy ratio in 5-15 Hz and 5-40 Hz bands
+
+    # histogram distribution
+    y_counts, y_bins = np.histogram(y)
 
     return out
 
 
-def remove_baseline_wander(x,y):
+def calc_rr(ecg,fs):
     '''
-    Remove baseline wander by polynomial subtraction and/or high-pass filter
-        Args: Time vector in sec (x) and ecg signal vector (y)
-        Returns: Processed ecg signal vector (y_out)
+    Calculate R-R intervals from ECG signal
+        Args: ECG segment (ecg), sampling frequency (fs)
+        Returns: rr_vec = list of tuples where each tuple represents the index
+            and amplitude of a R-peak
     '''
-    # plt.plot(x,y)
 
-    # method 1: cubic spline fitting and subtraction
-    t_range = [0,10] # process in 10-sec windows
-    while t_range[1] < x[-1]:
-        # extract segment of original signal
-        idx = (x >= t_range[0]) & (x < t_range[1])
-        dx = x[idx]
-        dy = y[idx]
-        # fit cubic function to segment
-        p = np.polyfit(dx,dy,3)
-        dy_fit = np.polyval(p,dx)
-        # replace segment of original signal with spline-subtracted signal
-        y[idx] = dy - dy_fit
-        t_range = [k+8 for k in t_range] # increment time window w/ 20% overlap
+    rr_vec = []
 
-    # method 2: high-pass filter
+    # print('Removing baseline wander...')
+    # ecg = remove_baseline(data['t'],data['I'])
 
-    '''
-    plt.plot(x,y)
+    print('Low-pass filtering...')
+    ecg_lpf = lpf(ecg,15,501,fs)
+
+    print('High-pass filtering...')
+    ecg_hpf = hpf(ecg_lpf,5,501,fs)
+
+    # differentiator filter
+
+    # rectification
+
+    plt.plot(sig)
+    plt.plot(sig_hpf)
     plt.show()
     plt.close()
-    '''
 
-    y_out = y
+    pk_idx,pk_amp = find_peaks(ecg_hpf)
 
-    return y_out
+    # add to RR array
+    for n in range(0,len(pk_idx)):
+        rr_vec.append( (pk_idx[n],pk_amp[n]) )
+
+    return rr_vec
 
 
-def find_peaks():
-    '''
-    '''
-    return 0
+def calc_hrv():
+
+
+def calc_resp():
+
 
 
 
@@ -156,51 +129,31 @@ if __name__ == "__main__":
 
     # grab data from https://physionet.org/physiobank/database/cebsdb
     print('Loading signals from CEBS database...')
-    data = get_data('cebsdb')
-
-    
-
-    pdb.set_trace()
+    # data = get_data('cebsdb')
+    data = pickle.load(open('data.pkl', 'rb'))
 
     # TODO: loop all records in data list
 
-    # plot measured ECG
     '''
+    # plot measured ECG
     f, axarr = plt.subplots(2, sharex=True)
     axarr[0].plot(data['t'], data['I'])
-    # axarr[0].plot(data['t'], data['II'])
+    axarr[0].plot(data['t'], data['II'])
     '''
 
-    print('Removing baseline wander...')
-    ecg = remove_baseline_wander(data['t'],data['I'])
+    sig = data['I'][0:19999]
 
-    # examine frequency content
-    # freq_out = freq_analysis(data['I'], data['fs'])
+    # sig_features = analysis(sig, data['fs'])
 
-    # for ECG, want to keep 5-15 Hz frequencies
-    print('Band-pass filtering...')
-    ecg_bp = bpf(ecg, 5, 15, data['fs'])
+    # extract R-R intervals and heart rate from raw
+    RR = calc_rr(sig, data['fs'])
 
-    plt.plot(ecg)
-    plt.plot(ecg_bp)
-    plt.show()
+    # derive heart rate from R-R intervals
+    HRV = calc_hrv(RR)
+
+    # derive respiration waveform and breathing rate from R-R peak amplitudes
+    resp = calc_resp(RR)
+
+    # TODO: compression/decompression
 
     pdb.set_trace()
-
-    # derivative filter
-
-    # absolute value
-
-    axarr[0].legend(['Measured ECG', 'Processed ECG'])
-
-    # line, = ax.plot([1, 2, 3], label='Inline label')
-
-
-    # plot measured respiration
-    axarr[1].plot(data['t'], data['RESP'])
-
-    # TODO: plot derived respiration
-
-    axarr[1].legend(['Measured ECG', 'Measured Respiration'])
-
-    plt.show()
