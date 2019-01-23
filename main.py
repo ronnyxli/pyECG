@@ -95,7 +95,7 @@ if __name__ == "__main__":
     ecg = data['I'][0:10000]
     fs = data['fs']
 
-    compress(ecg)
+    compress(ecg, {'energyThresh':0.9, 'quantPrecision': 8})
 
     pdb.set_trace()
 
