@@ -9,6 +9,7 @@ Functions for signal processing
 '''
 
 
+
 def lpf(y, fc, N, fs):
     '''
     Function to implement low-pass filter

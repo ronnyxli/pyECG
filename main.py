@@ -5,16 +5,16 @@ import wfdb
 import scipy.io as sio
 import pickle
 
-#
+# quantitative
 import numpy as np
 
 # signal processing
 from scipy import signal, fftpack
-from sig_proc import bpf, hpf, lpf
-# from pywt import wavedec
 
 # plotting
 from matplotlib import pyplot as plt
+
+from compress_1D import compress, reconstruct
 
 # debugging
 import pdb
@@ -28,8 +28,8 @@ def get_data(db_name):
     # TODO: loop through all records in db and create list of data_dicts
 
     data_dict = {}
-
-    record = wfdb.rdsamp('b001', pb_dir=db_name)
+    pdb.set_trace()
+    record = wfdb.rdsamp('100', pb_dir=db_name)
 
     # record is a tuple containing a numpy ndarray (the signal) and a dict (signal descriptors)
 
@@ -78,47 +78,7 @@ def analysis(y,fs):
     return out
 
 
-def calc_rr(ecg,fs):
-    '''
-    Calculate R-R intervals from ECG signal
-        Args: ECG segment (ecg), sampling frequency (fs)
-        Returns: rr_vec = list of tuples where each tuple represents the index
-            and amplitude of a R-peak
-    '''
 
-    rr_vec = []
-
-    # print('Removing baseline wander...')
-    # ecg = remove_baseline(data['t'],data['I'])
-
-    print('Low-pass filtering...')
-    ecg_lpf = lpf(ecg,15,501,fs)
-
-    print('High-pass filtering...')
-    ecg_hpf = hpf(ecg_lpf,5,501,fs)
-
-    # differentiator filter
-
-    # rectification
-
-    plt.plot(sig)
-    plt.plot(sig_hpf)
-    plt.show()
-    plt.close()
-
-    pk_idx,pk_amp = find_peaks(ecg_hpf)
-
-    # add to RR array
-    for n in range(0,len(pk_idx)):
-        rr_vec.append( (pk_idx[n],pk_amp[n]) )
-
-    return rr_vec
-
-
-def calc_hrv():
-
-
-def calc_resp():
 
 
 
@@ -128,20 +88,23 @@ if __name__ == "__main__":
     # Combined measurement of ECG, breathing and seismocardiogram (CEBS database)
 
     # grab data from https://physionet.org/physiobank/database/cebsdb
-    print('Loading signals from CEBS database...')
-    # data = get_data('cebsdb')
-    data = pickle.load(open('data.pkl', 'rb'))
+    # print('Loading signals from CEBS database...')
+    # data = get_data('mitdb')
+    data = pickle.load(open('data/data.pkl', 'rb'))
 
-    # TODO: loop all records in data list
+    ecg = data['I'][0:10000]
+    fs = data['fs']
 
-    '''
+    compress(ecg)
+
+    pdb.set_trace()
+
+
     # plot measured ECG
-    f, axarr = plt.subplots(2, sharex=True)
-    axarr[0].plot(data['t'], data['I'])
-    axarr[0].plot(data['t'], data['II'])
-    '''
+    f, ax = plt.subplots(2, sharex=True)
+    ax[0].plot(data['t'], data['I'])
+    ax[0].plot(data['t'], data['II'])
 
-    sig = data['I'][0:19999]
 
     # sig_features = analysis(sig, data['fs'])
 
