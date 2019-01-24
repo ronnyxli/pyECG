@@ -3,48 +3,48 @@ import numpy as np
 from scipy import signal, fftpack
 
 import pdb
+from matplotlib import pyplot as plt
 
 '''
 Functions for signal processing
 '''
 
-
-
 def lpf(y, fc, N, fs):
     '''
     Function to implement low-pass filter
-        Args: Input signal (y), cutoff frequency (fc), filter length (N), sampling frequency (fs)
-        Returns: Filtered signal (y_filt)
+        Args: Input signal (y), cutoff frequency in Hz (fc), filter taps (N),
+                sampling frequency in Hz (fs)
+        Returns: Tuple containing filtered signal (y_filt) and filter coefficients (b)
     '''
-    b = signal.firwin(numtaps=N, cutoff=fc, fs=fs)
+    b = signal.firwin(numtaps=N, cutoff=2*fc/fs, window='hamming')
     y_filt = signal.lfilter(b,1,y)
     gd = int((N-1)/2) # calculate group delay
-    return y_filt[gd-1:]
+    return (y_filt[gd:], b)
 
 
 def hpf(y, fc, N, fs):
     '''
     Function to implement high-pass filter
-        Args: Input signal (y), cutoff frequency (fc), filter order (N), sampling frequency (fs)
-        Returns: Filtered signal (y_filt)
+        Args: Input signal (y), cutoff frequency in Hz (fc), filter taps (N),
+                sampling frequency in Hz (fs)
+        Returns: Tuple containing filtered signal (y_filt) and filter coefficients (b)
     '''
-    b = signal.firwin(numtaps=N, cutoff=fc, fs=fs, pass_zero=False)
+    b = signal.firwin(numtaps=N, cutoff=2*fc/fs, pass_zero=False)
     y_filt = signal.lfilter(b,1,y)
     gd = int((N-1)/2) # calculate group delay
-    return y_filt[gd-1:]
+    return (y_filt[gd:], b)
 
 
-def bpf(y, lo, hi, fs):
+def bpf(y, lo, hi, N, fs):
     '''
     Function to implement band-pass filter
-        Args: Input signal (x), cutoff frequencies (lo, hi), sampling frequency (fs)
-        Returns: Filtered signal (x_filt)
+        Args: Input signal (y), cutoff frequencies in Hz (lo, hi),
+                filter taps (N), sampling frequency in Hz (fs)
+        Returns: Filtered signal (y_filt) and filter coefficients (b)
     '''
-    b = signal.firwin(30, [2*lo/fs, 2*hi/fs], pass_zero=False)
-    y_filt = signal.lfilter(b,1,y)
-    pdb.set_trace()
 
-    # determine lowest butterworth order
+    '''
+    # determine lowest butterworth order to achieve desired
     fc_lo = 2*lo/fs # lower cutoff frequency in rad
     fc_hi = 2*hi/fs # higher cutoff frequency in rad
     wp = [fc_lo, fc_hi] # passband edge frequencies
@@ -56,36 +56,62 @@ def bpf(y, lo, hi, fs):
     # generate coefficients and apply filter
     b, a = signal.butter(N, [fc_lo, fc_hi], btype='bandpass')
     x_filt = signal.filtfilt(b,a,y)
-
-    return x_filt
-
-
-def remove_baseline(y,win_length):
     '''
-    Remove baseline wander by polynomial subtraction and/or high-pass filter
-        Args: y = input signal, win_length = number of samples in processing segments
-        Returns: Processed signal vector (y_out)
+
+    b = signal.firwin(30, [2*lo/fs, 2*hi/fs], pass_zero=False)
+    y_filt = signal.lfilter(b,1,y)
+    gd = int((N-1)/2) # calculate group delay
+    return (y_filt[gd:], b)
+
+
+def detrend(y, window_len):
     '''
-    # cubic spline fitting and subtraction
-    t_range = [0,10] # process in 10-sec windows
-    while t_range[1] < y[-1]:
-        # extract segment of original signal
-        idx = (x >= t_range[0]) & (x < t_range[1])
-        dx = x[idx]
-        dy = y[idx]
-        # fit cubic function to segment
-        p = np.polyfit(dx,dy,3)
-        dy_fit = np.polyval(p,dx)
-        # replace segment of original signal with spline-subtracted signal
-        y[idx] = dy - dy_fit
-        t_range = [k+8 for k in t_range] # increment time window w/ 20% overlap
-
-    y_out = y
-
-    return y_out
-
-
-def find_peaks():
+    Remove baseline wander by polynomial subtraction
+        Args: Input signal (y), window length in samples (window_len)
+        Returns: None
     '''
-    '''
+    # process in windows of width specified by window_samp
+    window_idx = np.arange(window_len)
+    while window_idx[0] <= len(y):
+
+        if window_idx[-1] > len(y):
+            window_idx = np.arange(window_idx[0], len(y))
+
+        sig = y[window_idx]
+
+        # fit 4th-order polynomial
+        p = np.polyfit(window_idx, sig, 4)
+        sig_fit = np.polyval(p, window_idx)
+
+        # replace original signal segment with de-trended signal segment
+        np.put(y, window_idx, sig-sig_fit)
+
+        # shift window
+        window_idx += window_len
+
     return 0
+
+
+
+
+def proc_ecg(ecg, fs):
+    '''
+    Execute processing steps for input ECG signal (ecg) with sampling frequency fs
+    '''
+
+    plt.plot(ecg)
+
+    # low-pass filter
+    ecg, lpf_coeff = lpf(ecg, 30, 31, fs)
+
+    # x, b = lpf(sig, 0.5, 31, fs)
+    # sig_fit = signal.filtfilt(b,1,sig)
+
+    # baseline removal
+    detrend(ecg, 2*fs)
+
+    # plt.plot(ecg)
+    # plt.show()
+    plt.close()
+
+    return ecg

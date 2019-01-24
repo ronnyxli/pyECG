@@ -11,41 +11,15 @@ import numpy as np
 # signal processing
 from scipy import signal, fftpack
 
+from compress_1D import compress, reconstruct
+from sig_proc import proc_ecg
+from calc_ecg_features import calc_rr
+
 # plotting
 from matplotlib import pyplot as plt
 
-from compress_1D import compress, reconstruct
-
 # debugging
 import pdb
-
-
-def get_data(db_name):
-    '''
-    Pulls data from the PhysioNet database specified by db_name
-    '''
-
-    # TODO: loop through all records in db and create list of data_dicts
-
-    data_dict = {}
-    pdb.set_trace()
-    record = wfdb.rdsamp('100', pb_dir=db_name)
-
-    # record is a tuple containing a numpy ndarray (the signal) and a dict (signal descriptors)
-
-    # load relevant descriptors into dict
-    data_dict['fs'] = record[1]['fs']
-    data_dict['schema'] = record[1]['sig_name']
-
-    # derive time vector in sec
-    data_dict['t'] = np.linspace(0,record[1]['sig_len']/record[1]['fs'],num=record[1]['sig_len'])
-
-    # load signals into dict based on schema
-    sig = record[0]
-    for n in range(0,len(data_dict['schema'])):
-        data_dict[data_dict['schema'][n]] = sig[:,n]
-
-    return data_dict
 
 
 def analysis(y,fs):
@@ -84,39 +58,48 @@ def analysis(y,fs):
 
 
 if __name__ == "__main__":
+    '''
+    # grab record f1o01 from https://physionet.org/physiobank/database/fantasia
+    # record = wfdb.rdsamp('f1o02', pb_dir='fantasia')
+    record = pickle.load( open('data/f1o01.pkl', 'rb') )
 
-    # Combined measurement of ECG, breathing and seismocardiogram (CEBS database)
+    # get sampling rate and save signals in dict
+    fs = record[1]['fs']
+    data = {}
+    for n in range(0, len(record[1]['sig_name'])):
+        data[record[1]['sig_name'][n]] = record[0][:,n]
 
-    # grab data from https://physionet.org/physiobank/database/cebsdb
-    # print('Loading signals from CEBS database...')
-    # data = get_data('mitdb')
-    data = pickle.load(open('data/data.pkl', 'rb'))
+    # extract 10-second chunk
+    ecg = data['ECG'][0:fs*14]
+    resp = data['RESP'][0:fs*14]
+    '''
 
-    ecg = data['I'][0:10000]
-    fs = data['fs']
+    record = pickle.load( open('C:/Users/rli/Desktop/rw2_ecg_2.pkl', 'rb') )
+    ecg = record['sig'][0]
+    fs = record['fs']
 
-    compress(ecg, {'energyThresh':0.9, 'quantPrecision': 8})
-
-    pdb.set_trace()
-
-
-    # plot measured ECG
-    f, ax = plt.subplots(2, sharex=True)
-    ax[0].plot(data['t'], data['I'])
-    ax[0].plot(data['t'], data['II'])
-
+    # pre-processing
+    ecg_proc = proc_ecg(ecg, fs)
 
     # sig_features = analysis(sig, data['fs'])
 
-    # extract R-R intervals and heart rate from raw
-    RR = calc_rr(sig, data['fs'])
+    # extract R-R intervals and heart rate from ECG signal
+    # RR = calc_rr(ecg_proc)
 
     # derive heart rate from R-R intervals
-    HRV = calc_hrv(RR)
+    # HRV = calc_hrv(RR)
 
     # derive respiration waveform and breathing rate from R-R peak amplitudes
-    resp = calc_resp(RR)
+    # resp = calc_resp(RR)
 
-    # TODO: compression/decompression
+    # compression
+    compressed_data = compress(ecg_proc, {'energyThresh':0.9, 'quantPrecision': 8})
+
+    # TODO: reconstruction
+
+    # plot all
+    f, ax = plt.subplots(2, sharex=True)
+    ax[0].plot(data['t'], data['I'])
+    ax[0].plot(data['t'], data['II'])
 
     pdb.set_trace()

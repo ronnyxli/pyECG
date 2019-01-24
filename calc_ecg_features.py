@@ -1,4 +1,11 @@
 
+
+def find_peaks():
+    '''
+    '''
+    return 0
+
+
 def calc_rr(ecg,fs):
     '''
     Calculate R-R intervals from ECG signal
@@ -8,8 +15,6 @@ def calc_rr(ecg,fs):
     '''
 
     rr_vec = []
-
-
 
     # differentiator filter
 

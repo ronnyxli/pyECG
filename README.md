@@ -1,8 +1,10 @@
 # pyECG
-ECG signal processing to calculate physiological metrics
+This project contains functions for processing, compressing, and extracting physiological features from ECG signals.
+
+The script main.py tests the functions on sample data from the Fantasia database on Physionet, downloaded using the wfdb python package:
+record = wfdb.rdsamp('f1o01', pb_dir='fantasia')
 
 Required Python modules:
-- wfdb (for downloading signals from PhysioNet databases)
 - numpy (for quantitative operations)
 - scipy (for signal processing)
 - matplotlib (for visualization)
@@ -17,7 +19,7 @@ Required Python modules:
 ###### Metric 3: ECG-derived respiration
 (In progress)
 
-###### 
+######
 
 ###### References:
 1) Pan J and Tompkins WJ. "A Real-Time QRS Detection Algorithm." IEEE Trans Biomed Eng. 1985;32(3): 232-6.
