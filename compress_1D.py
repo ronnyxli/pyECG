@@ -56,6 +56,7 @@ def quantize(b, p):
 
 
 
+
 def compress(x,params):
     '''
     Args: x = input vector, params = dictionary of compression parameters
@@ -84,8 +85,6 @@ def compress(x,params):
     out = {'coeff_quant':coeff_quant, 'cutoff_idx':cutoff_idx, 'bin_lims':bin_lims, 'CR':CR}
 
     return out
-
-
 
 
 def reconstruct(x):

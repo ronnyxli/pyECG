@@ -98,9 +98,6 @@ def proc_ecg(ecg, fs):
     '''
     Execute processing steps for input ECG signal (ecg) with sampling frequency fs
     '''
-
-    plt.plot(ecg)
-
     # low-pass filter
     ecg, lpf_coeff = lpf(ecg, 30, 31, fs)
 
@@ -109,9 +106,5 @@ def proc_ecg(ecg, fs):
 
     # baseline removal
     detrend(ecg, 2*fs)
-
-    # plt.plot(ecg)
-    # plt.show()
-    plt.close()
 
     return ecg

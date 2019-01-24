@@ -54,11 +54,8 @@ def analysis(y,fs):
 
 
 
-
-
-
 if __name__ == "__main__":
-    '''
+
     # grab record f1o01 from https://physionet.org/physiobank/database/fantasia
     # record = wfdb.rdsamp('f1o02', pb_dir='fantasia')
     record = pickle.load( open('data/f1o01.pkl', 'rb') )
@@ -72,11 +69,6 @@ if __name__ == "__main__":
     # extract 10-second chunk
     ecg = data['ECG'][0:fs*14]
     resp = data['RESP'][0:fs*14]
-    '''
-
-    record = pickle.load( open('C:/Users/rli/Desktop/rw2_ecg_2.pkl', 'rb') )
-    ecg = record['sig'][0]
-    fs = record['fs']
 
     # pre-processing
     ecg_proc = proc_ecg(ecg, fs)
@@ -94,12 +86,7 @@ if __name__ == "__main__":
 
     # compression
     compressed_data = compress(ecg_proc, {'energyThresh':0.9, 'quantPrecision': 8})
-
+    
     # TODO: reconstruction
-
-    # plot all
-    f, ax = plt.subplots(2, sharex=True)
-    ax[0].plot(data['t'], data['I'])
-    ax[0].plot(data['t'], data['II'])
 
     pdb.set_trace()
