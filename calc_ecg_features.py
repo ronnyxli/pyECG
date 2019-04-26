@@ -6,9 +6,9 @@ def find_peaks():
     return 0
 
 
-def calc_rr(ecg,fs):
+def detect_R_peaks(ecg,fs):
     '''
-    Calculate R-R intervals from ECG signal
+    Detect intervals from ECG signal
         Args: ECG segment (ecg), sampling frequency (fs)
         Returns: rr_vec = list of tuples where each tuple represents the index
             and amplitude of a R-peak

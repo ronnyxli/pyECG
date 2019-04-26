@@ -11,15 +11,22 @@ import numpy as np
 # signal processing
 from scipy import signal, fftpack
 
-from compress_1D import compress, reconstruct
-from sig_proc import proc_ecg
-from calc_ecg_features import calc_rr
-
 # plotting
 from matplotlib import pyplot as plt
+from matplotlib import gridspec
+
+from compression import compress
+from reconstruction import reconstruct
+# from calc_ecg_features import detect_R_peaks
 
 # debugging
 import pdb
+
+# physionet database
+db_name = 'mitdb' # 'cdb'
+
+PLOT = True
+
 
 
 def analysis(y,fs):
@@ -31,14 +38,19 @@ def analysis(y,fs):
 
     out = {}
 
-    y = y[0:fs*5-1] # extract 5-second segment
-
     # calculate PDF using 4-second windows with 50% overlap
     f,Pyy = signal.welch(y, fs=fs, nperseg=2*fs, noverlap=fs)
 
+    plt.subplot(211)
+    plt.plot(y)
+    plt.grid(True)
+
+    plt.subplot(212)
     plt.plot(f, Pyy)
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Power')
+    plt.grid(True)
+
     plt.show()
     plt.close()
 
@@ -52,41 +64,99 @@ def analysis(y,fs):
     return out
 
 
+def calc_PRD(xs,xr):
+    '''
+    original signal (xs) and resconstructed signal (xr)
+    '''
+    MSE = np.sum( (xs - xr)**2 )
+    return 100*np.sqrt( MSE/np.sum([float(x)**2 for x in xs]) )
+
 
 
 if __name__ == "__main__":
 
-    # grab record f1o01 from https://physionet.org/physiobank/database/fantasia
-    # record = wfdb.rdsamp('f1o02', pb_dir='fantasia')
-    record = pickle.load( open('data/f1o01.pkl', 'rb') )
+    # loop all records in database
+    for record in wfdb.get_record_list(db_name, records='all'):
 
-    # get sampling rate and save signals in dict
-    fs = record[1]['fs']
-    data = {}
-    for n in range(0, len(record[1]['sig_name'])):
-        data[record[1]['sig_name'][n]] = record[0][:,n]
+        # get data for current record
+        data = wfdb.rdsamp(record, pb_dir=db_name)
+        fs = data[1]['fs']
+        ecg = data[0][:,0][0:fs*20]
 
-    # extract 10-second chunk
-    ecg = data['ECG'][0:fs*14]
-    resp = data['RESP'][0:fs*14]
+        header, wc_compressed, wc_orig = compress(ecg)
 
-    # pre-processing
-    ecg_proc = proc_ecg(ecg, fs)
+        ecg_recon, wc_recon = reconstruct(header, wc_compressed)
 
-    # sig_features = analysis(sig, data['fs'])
+        PRD = calc_PRD(ecg, ecg_recon)
 
-    # extract R-R intervals and heart rate from ECG signal
-    # RR = calc_rr(ecg_proc)
+        if PLOT:
 
-    # derive heart rate from R-R intervals
-    # HRV = calc_hrv(RR)
+            fig = plt.figure(figsize=(15,8))
 
-    # derive respiration waveform and breathing rate from R-R peak amplitudes
-    # resp = calc_resp(RR)
+            # plot reconstructed wavelet coefficients with original
+            gs = gridspec.GridSpec(12,11)
 
-    # compression
-    compressed_data = compress(ecg_proc, {'energyThresh':0.9, 'quantPrecision': 8})
-    
-    # TODO: reconstruction
+            # ECG signal
+            ax0 = plt.subplot(gs[0:4, 0:11])
+            ax0.plot(ecg)
+            ax0.plot(ecg_recon)
+            ax0.grid(True)
+            # plt.title('ECG Signal')
+            plt.title( 'CR = ' + str(round(header['CR'],3)) + ', PRD = '  + str(round(PRD,3)) )
 
-    pdb.set_trace()
+            # level 1 detail (cD1)
+            ax1 = plt.subplot(gs[5:8, 0:3])
+            ax1.plot(wc_orig[5])
+            ax1.plot(wc_recon[5])
+            ax1.grid(True)
+            plt.title('cD1 (64-128 Hz)')
+
+            # level 2 detail (cD2)
+            ax2 = plt.subplot(gs[5:8, 4:7])
+            ax2.plot(wc_orig[4])
+            ax2.plot(wc_recon[4])
+            ax2.grid(True)
+            plt.title('cD2 (32-64 Hz)')
+
+            # level 3 detail (cD3)
+            ax3 = plt.subplot(gs[5:8, 8:11])
+            ax3.plot(wc_orig[3])
+            ax3.plot(wc_recon[3])
+            ax3.grid(True)
+            plt.title('cD3 (16-32 Hz)')
+
+            # level 4 detail (cD4)
+            ax4 = plt.subplot(gs[9:12, 0:3])
+            ax4.plot(wc_orig[2])
+            ax4.plot(wc_recon[2])
+            ax4.grid(True)
+            plt.title('cD4 (8-16 Hz)')
+
+            # level 5 detail (cD5)
+            ax5 = plt.subplot(gs[9:12, 4:7])
+            ax5.plot(wc_orig[1])
+            ax5.plot(wc_recon[1])
+            ax5.grid(True)
+            plt.title('cD5 (4-8 Hz)')
+
+            # level 5 approximation (cA5)
+            ax5 = plt.subplot(gs[9:12, 8:11])
+            ax5.plot(wc_orig[0])
+            ax5.plot(wc_recon[0])
+            ax5.grid(True)
+            plt.title('cA5 (0-4 Hz)')
+
+            plt.show()
+            plt.close()
+
+            pdb.set_trace()
+
+        '''
+        try:
+            # get annotations for current record
+            ann = wfdb.rdann(record, extension='atr', pb_dir=db_name)
+            ann.symbol
+            ann.sample
+        except:
+            print('Failed to get annotations')
+        '''
