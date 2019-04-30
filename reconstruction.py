@@ -69,7 +69,7 @@ def reconstruct(hdr, coeffs):
                 cD_idx += 1
                 cD[m] = cD_rescaled[cD_idx]
         coeffs_recon.append(np.array(cD))
-
+    
     y_recon = pywt.waverec(coeffs_recon, WAVELET_TYPE)
 
     return y_recon, coeffs_recon

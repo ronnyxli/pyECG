@@ -149,25 +149,28 @@ def compress(sig):
     # wavelet decomposition using PyWavelets
     wavelet_coeffs = pywt.wavedec(sig, WAVELET_TYPE, level=WAVEDEC_LEVELS)
 
-    # quantize highest level approximation coeffs
+    # quantize lowest level approximation coeffs
     cA_quant, cA_lims = quantize(wavelet_coeffs[0], QUANT_PRECISION)
 
     # selectively discard detail coefficients at each level and keep indexes to retain
     cD = []
     sig_idx = []
     for k in range(1,len(wavelet_coeffs)):
-        if k == len(wavelet_coeffs)-1:
-            # discard all highest level detail coefficients (i.e. cD1)
-            cD_new, ind = adaptive_thresh(wavelet_coeffs[k])
-            # ind = [0]*len(wavelet_coeffs[k])
-            # cD_new = []
-        elif k == 1:
-            # retain all lowest level detail coefficients (i.e. cD5)
+        if k == 1:
+            # retain all lowest level detail coefficients
             ind = [1]* len(wavelet_coeffs[k])
             cD_new = list(wavelet_coeffs[k])
+        elif k == len(wavelet_coeffs) - 1:
+            # discard all highest level detail coefficients
+            ind = [0]* len(wavelet_coeffs[k])
+            cD_new = []
         else:
+            # selectively retain detail coefficients
             cD_new, ind = adaptive_thresh(wavelet_coeffs[k])
-
+            # TODO: determine when to discard all
+            # ind = [0]* len(wavelet_coeffs[k])
+            # cD_new = []
+            
         cD = cD + cD_new
         sig_idx = sig_idx + ind
 
