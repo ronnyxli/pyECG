@@ -39,7 +39,7 @@ def rescale(x, B, lims):
     return np.array(xs)
 
 
-def reconstruct(hdr, coeffs):
+def reconstruct(coeffs):
     '''
         Args:
         Returns: reconstructed signal (y_recon), detail coefficients, length of
@@ -50,26 +50,23 @@ def reconstruct(hdr, coeffs):
     coeffs_recon = []
 
     # retained all cA5 coefficients
-    cA = coeffs[0:hdr['c_lengths'][0]]
-    coeffs_recon.append(rescale(cA, QUANT_PRECISION, hdr['cA_lims']))
+    cA = coeffs[0]['val']
+    coeffs_recon.append(rescale(cA, QUANT_PRECISION, coeffs[0]['lims']))
 
-    # retained select cD1-5 coefficients
-    cD_rescaled = rescale(coeffs[hdr['c_lengths'][0]:], QUANT_PRECISION, hdr['cD_lims'])
-    cD_idx = -1
-    for n in range(1,len(hdr['c_lengths'])):
-        d_length = hdr['c_lengths'][n]
+    # reconstruct detail coefficients
+    for n in range(1,len(coeffs)):
+        d_length = len(coeffs[n]['ind'])
         cD = [0]*d_length
-        if n == 1:
-            start_idx = 0
-        else:
-            start_idx = np.sum(hdr['c_lengths'][1:n])
-        sig_idx = hdr['ind'][start_idx:start_idx+d_length]
-        for m in range(0,len(sig_idx)):
-            if sig_idx[m]:
-                cD_idx += 1
-                cD[m] = cD_rescaled[cD_idx]
+        if len(coeffs[n]['val']) > 0:
+            cD_rescaled = rescale(coeffs[n]['val'], QUANT_PRECISION, coeffs[n]['lims'])
+            cD_idx = -1
+            for m in range(0,d_length):
+                if coeffs[n]['ind'][m]:
+                    cD_idx += 1
+                    cD[m] = cD_rescaled[cD_idx]
         coeffs_recon.append(np.array(cD))
-    
+
+    # wavelet reconstruction
     y_recon = pywt.waverec(coeffs_recon, WAVELET_TYPE)
 
     return y_recon, coeffs_recon

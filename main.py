@@ -9,7 +9,7 @@ import pickle
 import numpy as np
 
 # signal processing
-from scipy import signal, fftpack
+from scipy import signal, stats, fftpack
 
 # plotting
 from matplotlib import pyplot as plt
@@ -17,7 +17,6 @@ from matplotlib import gridspec
 
 from compression import compress
 from reconstruction import reconstruct
-# from calc_ecg_features import detect_R_peaks
 
 # debugging
 import pdb
@@ -25,16 +24,20 @@ import pdb
 # physionet database
 db_name = 'ecgiddb'
 '''
+cdb
 mitdb
+aami-ec13
 '''
 
-PLOT = True
+PLOT = False
 
 
 def calc_PRD(xs,xr):
     # percent RMS difference
     MSE = np.sum( (xs - xr)**2 )
-    return 100*np.sqrt( MSE/np.sum([float(x)**2 for x in xs]) )
+    # return PRD and Pearson's correlation (R)
+    pearson_corr = stats.pearsonr(xs,xr)
+    return 100*np.sqrt( MSE/np.sum([float(x)**2 for x in xs]) ), pearson_corr[0]
 
 
 def analysis(y,fs):
@@ -57,6 +60,7 @@ def analysis(y,fs):
     pow_tot = np.sum(Pyy)
     pow_5_50 = np.sum(Pyy[(xf >= 5) & (xf <= 50)])
 
+    # SNR calculation
     out['5_50_ratio'] = pow_5_50/(pow_tot - pow_5_50)
     out['SNR'] = 20*np.log10(out['5_50_ratio'])
 
@@ -66,29 +70,48 @@ def analysis(y,fs):
 
 if __name__ == "__main__":
 
+    # initialize empty lists for evaluation metrics
+    CR_arr = []
+    PRD_arr = []
+    R_arr = []
+    SNRo_arr = []
+    SNRr_arr = []
+    d_SNR = []
+
     # loop all records in database
     for record in wfdb.get_record_list(db_name, records='all'):
 
-        record = 'Person_01/rec_10'
+        # record = 'Person_01/rec_10'
+        # record = '203'
 
         # get data for current record
         data = wfdb.rdsamp(record, pb_dir=db_name + '/' + record.split('/')[0])
 
         Fs = data[1]['fs']
-        ecg = data[0][:,0]#[0:Fs*10]
+        ecg = data[0][:,0]#[0:Fs*20]
+
+        # zero-mean
+        ecg = ecg - np.mean(ecg)
 
         # call compression function
-        header, ecg_compressed, wc_orig = compress(ecg)
+        CR, ecg_compressed, wc_orig = compress(ecg, Fs)
 
         # call reconstruction function
-        ecg_recon, wc_recon = reconstruct(header, ecg_compressed)
+        ecg_recon, wc_recon = reconstruct(ecg_compressed)
 
-        PRD = calc_PRD(ecg, ecg_recon)
-
+        # compute and store evaluation metrics
+        PRD, R = calc_PRD(ecg, ecg_recon)
         ps = analysis(ecg, Fs)
         pr = analysis(ecg_recon, Fs)
+        CR_arr.append(CR)
+        PRD_arr.append(PRD)
+        R_arr.append(R)
+        SNRo_arr.append(ps['SNR'])
+        SNRr_arr.append(pr['SNR'])
+        d_SNR.append(pr['SNR'] - ps['SNR'])
 
-        print(record + ': ' + 'SNR orig = ' + str(ps['SNR']) + '; SNR recon = ' + str(pr['SNR']))
+        print( record + ': ' + 'CR = ' + str(round(CR,3)) + '; PRD = ' + str(round(PRD,3)) + '; R = ' + str(round(R,3)) )
+        print( record + ': ' + 'SNR orig = ' + str(round(ps['SNR'],3)) + '; SNR recon = ' + str(round(pr['SNR'],3)) )
 
         '''
         fig = plt.figure(figsize=(12,6))
@@ -107,7 +130,7 @@ if __name__ == "__main__":
 
         pdb.set_trace()
         '''
-        if PLOT:
+        if PLOT & (CR > 9) & (R < 0.5):
 
             fig = plt.figure(figsize=(15,8))
 
@@ -119,8 +142,8 @@ if __name__ == "__main__":
             ax0.plot(ecg)
             ax0.plot(ecg_recon)
             ax0.grid(True)
-            # plt.title('ECG Signal (0-' + str(Fs/2) + ' Hz)')
-            plt.title( 'CR = ' + str(round(header['CR'],3)) + ', PRD = '  + str(round(PRD,3)) )
+            plt.title('ECG Signal (0-' + str(Fs/2) + ' Hz)')
+            # plt.title( 'CR = ' + str(round(CR,3)) + ', PRD = '  + str(round(PRD,3)) )
 
             # level 1 detail (cD1)
             ax1 = plt.subplot(gs[5:8, 0:3])
@@ -198,3 +221,29 @@ if __name__ == "__main__":
         except:
             print('Failed to get annotations')
         '''
+
+    # box plot of SNR
+    plt.boxplot([SNRo_arr, SNRr_arr], showmeans=True, labels=['Original', 'Reconstructed'])
+    plt.grid(True)
+    plt.ylabel('SNR (dB)')
+
+    plt.show()
+    plt.close()
+
+    plt.plot(CR_arr, PRD_arr, 'b.')
+    plt.grid(True)
+    plt.xlabel('CR')
+    plt.ylabel('PRD')
+
+    plt.show()
+    plt.close()
+
+    plt.plot(CR_arr, R_arr, 'b.')
+    plt.grid(True)
+    plt.xlabel('CR')
+    plt.ylabel('R')
+
+    plt.show()
+    plt.close()
+
+    pdb.set_trace()
