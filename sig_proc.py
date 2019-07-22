@@ -9,6 +9,33 @@ from matplotlib import pyplot as plt
 Functions for signal processing
 '''
 
+def analysis(y,FS):
+    '''
+    Time-series and frequency analysis of input signal y
+    '''
+
+    # calculate PDF of signal
+    # xf,Pyy = signal.welch(y, FS=FS, nperseg=2*FS, noverlap=FS)
+
+    N = len(y)
+    T = 1/FS # period
+    yf = fftpack.fft(y - np.mean(y))
+    xf = np.linspace(0.0, 1.0/(2.0*T), N//2)
+    Pyy = np.abs(yf[0:N//2])**2
+
+    out = {'freq':xf, 'pow':Pyy}
+
+    # power calculations
+    pow_tot = np.sum(Pyy)
+    pow_5_50 = np.sum(Pyy[(xf >= 5) & (xf <= 50)])
+
+    # SNR calculation
+    out['5_50_ratio'] = pow_5_50/(pow_tot - pow_5_50)
+    out['SNR'] = 20*np.log10(out['5_50_ratio'])
+
+    return out
+
+
 def lpf(y, fc, N, fs):
     '''
     Function to implement low-pass filter
