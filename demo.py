@@ -21,14 +21,6 @@ from reconstruction import reconstruct
 # debugging
 import pdb
 
-# physionet database
-db_name = 'ecgiddb'
-'''
-cdb
-mitdb
-aami-ec13
-'''
-
 PLOT = False
 
 
